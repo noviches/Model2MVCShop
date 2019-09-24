@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+				 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ReviewMapper">
+ 	
+	<resultMap id="reviewSelectMap" type="review">
+		<result property="reviewNo"						column="review_no"			jdbcType="NUMERIC" />
+		<result property="trans.tranNo"					column="tran_no"			jdbcType="NUMERIC" />
+		<result property="trans.purchaseProd.prodNo"	column="prod_no"			jdbcType="NUMERIC" />
+		<result property="trans.purchaseProd.prodName"	column="prod_name"			jdbcType="VARCHAR" />
+		<result property="trans.buyer.userId"			column="buyer_id"			jdbcType="VARCHAR" />
+		<result property="content"						column="content"			jdbcType="VARCHAR" />
+		<result property="reviewImg"					column="review_img"			jdbcType="VARCHAR" />
+		<result property="good"							column="good"				jdbcType="NUMERIC" />
+		<result property="reviewDate"					column="review_date"		jdbcType="DATE" />
+	</resultMap>
+	
+	<!-- SQL : INSERT -->
+	<insert id="addReview" parameterType="review">
+		INSERT
+		INTO review ( review_no, tran_no, prod_no, buyer_id, content, review_img, good, review_date )
+		VALUES ( seq_review_review_no.nextval, #{trans.tranNo}, #{trans.purchaseProd.prodNo},
+				 #{trans.buyer.userId}, #{content:VARCHAR}, #{reviewImg:VARCHAR}, 0, SYSDATE )
+	</insert>
+	
+	<!-- SQL : SELECT ONE -->
+	<select id="getReview" parameterType="int" resultMap="reviewSelectMap">
+		SELECT review_no, tran_no, prod_no, buyer_id, content, review_img, good, review_date
+		FROM review
+		WHERE review_no = #{value}
+	</select>
+	
+	<select id="getReview2" parameterType="int" resultMap="reviewSelectMap">
+		SELECT review_no, tran_no, prod_no, buyer_id, content, review_img, good, review_date
+		FROM review
+		WHERE tran_no = #{value}
+	</select>
+	
+	<!-- SQL : UPDATE -->
+	<update	id="updateReview" parameterType="review">
+	  	UPDATE review
+	  	<set>
+	  		content = #{content}
+	  		<if test="reviewImg != null and reviewImg != ''">, review_img = #{reviewImg}</if>
+	  	</set>
+	  	WHERE review_no = #{reviewNo}
+	</update>
+	
+	<!-- SQL : SELECT LIST -->
+	<select id="getReviewList" parameterType="search" resultMap="reviewSelectMap">
+		SELECT *
+		FROM ( SELECT inner_table.*, ROWNUM AS row_seq
+			   FROM ( SELECT r.review_no, r.tran_no, r.prod_no, r.buyer_id, r.content, r.review_img,
+							 r.good, r.review_date, p.prod_name
+					  FROM review r, product p
+					  <where>
+						r.prod_no = p.prod_no
+						<if test="searchKeyword != null and searchKeyword != ''">
+							AND r.prod_no = #{searchKeyword}
+						</if>
+					  </where>
+					  ORDER BY r.review_no DESC ) inner_table
+			   WHERE ROWNUM &lt;= #{endRowNum} )
+		WHERE row_seq BETWEEN #{startRowNum} AND #{endRowNum}
+	</select>
+	
+	<!-- SQL : SELECT ROW Count -->	 
+	<select id="getTotalCount" parameterType="search" resultType="int">
+		SELECT COUNT(*)
+		FROM ( SELECT r.review_no, r.tran_no, r.prod_no, r.buyer_id, r.content, r.review_img,
+					  r.good, r.review_date, p.prod_name
+			   FROM review r, product p
+			   <where>
+			   	r.prod_no = p.prod_no
+			  	<if test="searchKeyword != null and searchKeyword != ''">
+					AND r.prod_no = #{searchKeyword}
+				</if>
+			   </where>
+			   ORDER BY r.review_no DESC ) countTable
+	</select>
+	
+</mapper>

@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+				 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ProductMapper">
+ 	
+	<resultMap id="productSelectMap" type="product">
+		<result property="prodNo"		column="prod_no"			jdbcType="NUMERIC" />
+		<result property="prodName"		column="prod_name"			jdbcType="VARCHAR" />
+		<result property="prodDetail"	column="prod_detail"		jdbcType="VARCHAR" />
+		<result property="manuDate"		column="manufacture_day"	jdbcType="VARCHAR" />
+		<result property="price"		column="price"				jdbcType="NUMERIC" />
+		<result property="thumbnail"	column="thumbnail"			jdbcType="VARCHAR" />
+		<result property="fileName"		column="image_file"			jdbcType="VARCHAR" />
+		<result property="regDate"		column="reg_date"			jdbcType="DATE" />
+		<result property="reQuantity"	column="re_quantity"		jdbcType="NUMERIC" />
+		<result property="saleCount"	column="count"				jdbcType="NUMERIC" />
+		<result property="hits"			column="hits"				jdbcType="NUMERIC" />
+	</resultMap>
+	
+	<!-- SQL : INSERT -->
+	<insert id="addProduct" parameterType="product">
+		INSERT
+		INTO product ( prod_no, prod_name, prod_detail, manufacture_day, price, thumbnail, image_file, re_quantity, hits, reg_date )
+		VALUES ( seq_product_prod_no.nextval, #{prodName}, #{prodDetail}, #{manuDate:VARCHAR}, #{price},
+				 #{thumbnail:VARCHAR}, #{fileName:VARCHAR}, #{reQuantity}, 0, SYSDATE )
+	</insert>
+	
+	<!-- SQL : SELECT ONE -->
+	<select id="getProduct" parameterType="int" resultMap="productSelectMap">
+		SELECT prod_no, prod_name, prod_detail, manufacture_day, price, thumbnail, image_file, reg_date, re_quantity, hits
+		FROM product
+		WHERE prod_no = #{value}
+	</select>
+	
+	<!-- SQL : UPDATE -->
+	<update	id="updateProduct" parameterType="product">
+	  	UPDATE product
+	  	<set>
+	  		prod_name = #{prodName},
+	  		prod_detail = #{prodDetail},
+	  		manufacture_day = #{manuDate:VARCHAR},
+	  		price = #{price},
+	  		re_quantity = #{reQuantity}
+	  		<if test="thumbnail != null and thumbnail != ''">, thumbnail = #{thumbnail}</if>
+	  		<if test="fileName != null and fileName != ''">, image_file = #{fileName}</if>
+	  	</set>
+	  	WHERE prod_no = #{prodNo}
+	</update>
+	
+	<update	id="updateHits" parameterType="product">
+	  	UPDATE product
+	  	<set>
+	  		hits = #{hits}
+	  	</set>
+	  	WHERE prod_no = #{prodNo}
+	</update>
+	
+	<!-- SQL : SELECT LIST -->
+	<select id="getProductList" parameterType="search" resultMap="productSelectMap">
+		SELECT *
+		FROM ( SELECT inner_table.*, ROWNUM AS row_seq
+			   FROM ( SELECT p.prod_no, p.prod_name, p.prod_detail, p.price, p.thumbnail, p.image_file,
+							 p.hits, p.re_quantity, NVL(t.count, 0) count
+					  FROM product p, (SELECT COUNT(*) count, prod_no
+									   FROM transaction
+									   GROUP BY prod_no) t
+					  <where>
+						p.prod_no = t.prod_no(+)
+						<if test="searchCondition != null">
+							<if test="searchCondition == 0 and searchKeyword != ''">
+								AND p.prod_name LIKE '%'||#{searchKeyword}||'%'
+							</if>
+							<if test="searchCondition == 1 and searchKeyword != ''">
+								AND p.prod_detail LIKE '%'||#{searchKeyword}||'%'
+							</if>
+						</if>
+						
+						<if test="searchMax != null and searchMax != ''">
+							<if test="searchMin != null and searchMin != ''">
+								AND p.price BETWEEN #{searchMin} AND #{searchMax}
+							</if>
+							<if test="searchMin == null or searchMin == ''">
+								AND p.price &lt;= #{searchMax}
+							</if>
+						</if>
+						<if test="searchMax == null or searchMax == ''">
+							<if test="searchMin != null and searchMin != ''">
+								AND p.price &gt;= #{searchMin}
+							</if>
+						</if>
+						
+						<if test="searchCode != null and searchCode != ''">
+							<if test="searchCode == 0">
+								AND p.re_quantity &gt; 0
+							</if>
+							<if test="searchCode == 1">
+								AND p.re_quantity = 0
+							</if>
+						</if>
+					  </where>
+					  ORDER BY
+						<if test="searchSort == null or searchSort == '' or searchSort == 0">
+							p.reg_date DESC
+						</if>
+						<if test="searchSort == 1">
+							p.prod_name
+						</if>
+						<if test="searchSort == 2">
+							p.hits DESC
+						</if>
+						<if test="searchSort == 3">
+							p.price DESC
+						</if>
+						<if test="searchSort == 4">
+							p.price
+						</if> ) inner_table
+			   WHERE ROWNUM &lt;= #{endRowNum} )
+		WHERE row_seq BETWEEN #{startRowNum} AND #{endRowNum}
+	</select>
+	
+	<!-- SQL : SELECT ROW Count -->	 
+	<select id="getTotalCount" parameterType="search" resultType="int">
+		SELECT COUNT(*)
+		FROM ( SELECT p.prod_no, p.prod_name, p.prod_detail, p.price, p.thumbnail, p.image_file, p.hits, p.re_quantity, NVL(t.count, 0) count
+			   FROM product p, (SELECT COUNT(*) count, prod_no
+								FROM transaction
+								GROUP BY prod_no) t
+				<where>
+					p.prod_no = t.prod_no(+)
+					<if test="searchCondition != null">
+						<if test="searchCondition == 0 and searchKeyword != ''">
+							AND p.prod_name LIKE '%'||#{searchKeyword}||'%'
+						</if>
+						<if test="searchCondition == 1 and searchKeyword != ''">
+							AND p.prod_detail LIKE '%'||#{searchKeyword}||'%'
+						</if>
+					</if>
+					
+					<if test="searchMax != null and searchMax != ''">
+						<if test="searchMin != null and searchMin != ''">
+							AND p.price BETWEEN #{searchMin} AND #{searchMax}
+						</if>
+						<if test="searchMin == null or searchMin == ''">
+							AND p.price &lt;= #{searchMax}
+						</if>
+					</if>
+					<if test="searchMax == null or searchMax == ''">
+						<if test="searchMin != null and searchMin != ''">
+							AND p.price &gt;= #{searchMin}
+						</if>
+					</if>
+					
+					<if test="searchCode != null and searchCode != ''">
+						<if test="searchCode == 0">
+							AND p.re_quantity &gt; 0
+						</if>
+						<if test="searchCode == 1">
+							AND p.re_quantity = 0
+						</if>
+					</if>
+				</where>
+				ORDER BY
+					<if test="searchSort == null or searchSort == '' or searchSort == 0">
+						p.reg_date DESC
+					</if>
+					<if test="searchSort == 1">
+						p.prod_name
+					</if>
+					<if test="searchSort == 2">
+						p.hits DESC
+					</if>
+					<if test="searchSort == 3">
+						p.price DESC
+					</if>
+					<if test="searchSort == 4">
+						p.price
+					</if> ) countTable
+	</select>
+	
+</mapper>
